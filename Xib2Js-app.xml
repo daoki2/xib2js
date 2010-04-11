@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<application xmlns="http://ns.adobe.com/air/application/1.5">
+<id>daoki2.XIB2JS</id>
+<version>1.10</version>
+<filename>Xib2Js</filename>
+<name>Xib2Js</name>
+<description>Xib to JavaScript translater for Titanum Mobile</description>
+<copyright>2010 daoki2</copyright>
+<initialWindow>
+  <title>Xib2Js for Titanium Mobile</title>
+  <content>Xib2Js.swf</content>
+  <systemChrome>standard</systemChrome>
+  <transparent>false</transparent>
+  <visible>false</visible>
+  <width>640</width>
+  <height>510</height>
+</initialWindow>
+<icon>
+  <image16x16>icons/app_icon_16.png</image16x16>
+  <image32x32>icons/app_icon_32.png</image32x32>
+  <image48x48>icons/app_icon_48.png</image48x48>
+  <image128x128>icons/app_icon_128.png</image128x128>
+ </icon>
+</application>

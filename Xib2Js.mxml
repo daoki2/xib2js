@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:WindowedApplication xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" applicationComplete="init()">
+  <mx:Script source="Xib2Js.as"/>
+  <mx:VBox horizontalScrollPolicy="off" verticalScrollPolicy="off">
+    <mx:Canvas id="toolBar" height="60" percentWidth="100"/>
+    <mx:Canvas percentWidth="100" percentHeight="100" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+      <mx:TabNavigator id="tabs" x="8" visible="true" horizontalScrollPolicy="off" verticalScrollPolicy="off"/>
+    </mx:Canvas>
+  </mx:VBox>
+</mx:WindowedApplication>
