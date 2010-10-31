@@ -1,7 +1,7 @@
 /**
  * XIB parser for Titanium Mobile
  * @author Copyright (c) 2010 daoki2
- * @version 1.1.0
+ * @version 1.2.0
  * 
  * Copyright (c) 2010 daoki2
  *
@@ -37,9 +37,16 @@ package {
      */
     public class XibParser {
 
-	private static const _TYPE:String = "com.apple.InterfaceBuilder3.CocoaTouch.XIB";
-	private static const _VERSION:String = "7.10";
-
+	private static const _TYPE:Array = [
+					    "com.apple.InterfaceBuilder3.CocoaTouch.XIB",
+					    "com.apple.InterfaceBuilder3.CocoaTouch.XIB",
+					    "com.apple.InterfaceBuilder3.CocoaTouch.iPad.XIB"
+					    ];
+	private static const _VERSION:Array = [
+					       "7.10",
+					       "8.00",
+					       "8.00"
+					       ];
 	private static var _xib:XML;
 	private static var _rootObjects:Array = [];
 	private static var _objRecords:Array = [];
@@ -140,6 +147,7 @@ package {
 	    var children:XMLList = xml.children();
 	    for each (var child:XML in children) {
 		switch (child.name().toString()) {
+		case "array":
 		case "object":
 		    if (child.attribute("class").toString() == "NSMutableArray" && child.@key.toString() == "IBDocument.RootObjects") {
 			parseRootObject(child);
@@ -178,6 +186,9 @@ package {
 		    case "IBUITableViewController":
 			_result = parseUITableViewController(child);
 			break;
+		    case "IBUISplitViewController":
+			_result = parseUISplitViewController(child);
+			break;
 		    case "IBUIImagePickerController":
 			_result = parseUIImagePickerController(child);
 			break;
@@ -189,7 +200,7 @@ package {
 			break;
 		    default:
 			// Do nothing
-			trace("# skipped", child.attribute("class").toString());
+			trace("# skipped:1", child.attribute("class").toString());
 			break;
 		    }
 		    if (_result != null) {
@@ -198,7 +209,7 @@ package {
 		    break;
 		default:
 		    // Do nothing
-		    trace("# skipped", child.name().toString());
+		    trace("# skipped:2", child.name().toString());
 		    break;
 		}
 	    }
@@ -233,7 +244,7 @@ package {
 		    break;
 		default:
 		    // Do nothing
-		    trace("# skipped", child.name().toString());
+		    trace("# skipped:3", child.name().toString());
 		    break;
 		}
 	    }
@@ -276,7 +287,7 @@ package {
 		break;
 	    default:
 		// do nothing
-		trace("# skipped", xml.name().toString());
+		trace("# skipped:4", xml.name().toString());
 		break;
 	    }
 	    return null;
@@ -297,11 +308,11 @@ package {
 		    switch(child.attribute("class").toString()) {
 		    case "IBUINavigationItem":
 			trace("UINavigationItem");
-			_navItem = {title:child.string.toString()};
+			_navItem = {title:getUITitle(child)};
 			break;
 		    case "IBUITabBarItem":
 			trace("UITabBarItem");
-			_tabItem = {title:child.string.toString()};
+			_tabItem = {title:getUITitle(child)};
 			break;
 		    case "IBUIView":
 			_view = parseUIView(child);
@@ -331,7 +342,7 @@ package {
 		    break;
 		default:
 		    // do nothing
-		    trace("# skipped", child.name().toString());
+		    trace("# skipped:5", child.name().toString());
 		    break;
 		}
 	    }
@@ -348,18 +359,20 @@ package {
 	    var _tabItem:Object = null;
 	    for each (var child:XML in children) {
 		switch(child.name().toString()) {
+		case "array":
 		case "object":
-		    if (child.attribute("class").toString() == "NSMutableArray" && child.@key.toString() == "IBUIViewControllers") {
+		    //if (child.attribute("class").toString() == "NSMutableArray" && child.@key.toString() == "IBUIViewControllers") {
+		    if (child.@key.toString() == "IBUIViewControllers") {
 			_views = parseViewControllers(child);
 		    }
 		    if (child.attribute("class").toString() == "IBUITabBarItem") {
 			trace("UITabBarItem");
-			_tabItem = {title:child.string.toString()};
+			_tabItem = {title:getUITitle(child)};
 		    }
 		    break;
 		default:
 		    // do nothing
-		    trace("# skipped", child.name().toString());
+		    trace("# skipped:6", child.name().toString());
 		    break;
 		}
 	    }
@@ -371,7 +384,34 @@ package {
 	 */
 	private static function parseUITableViewController(xml:XML):Object {
 	    trace("parse UITableViewController", getObjectName(xml.@id.toString()), xml.@id);
-	    return {obj:"IBUITableViewController", name:getObjectName(xml.@id.toString()), id:xml.@id.toString()}
+	    var _tabItem:Object = null;
+	    var _navItem:Object = null;
+	    var children:XMLList = xml.children();
+	    for each (var child:XML in children) {
+		switch(child.name().toString()) {
+		case "object":
+		    switch(child.attribute("class").toString()) {
+		    case "IBUINavigationItem":
+			trace("UINavigationItem");
+			_navItem = {title:getUITitle(child)};
+			break;
+		    case "IBUITabBarItem":
+			trace("UITabBarItem");
+			_tabItem = {title:getUITitle(child)};
+			break;
+		    case "IBUITableView":
+			trace("UITableView");
+			break;
+		    default:
+			// do nothing
+			break;
+		    }
+		default:
+		    // do nothing
+		    break;
+		}
+	    }
+	    return {obj:"IBUITableViewController", name:getObjectName(xml.@id.toString()), id:xml.@id.toString(), navItem:_navItem, tabItem:_tabItem}
 	}
 
 	/**
@@ -384,6 +424,7 @@ package {
 	    var children:XMLList = xml.children();
 	    for each (var child:XML in children) {
 		switch(child.name().toString()) {
+		case "array":
 		case "object":
 		    if (child.attribute("class").toString() == "IBUINavigationBar") {
 			// do nothing
@@ -394,19 +435,51 @@ package {
 		    break;
 		default:
 		    // do nothing
-		    trace("# skipped", child.name().toString());
+		    trace("# skipped:7", child.name().toString());
 		    break;
 		}
 	    }
 	    return {obj:"IBUIImagePickerController", name:getObjectName(xml.@id.toString()), id:xml.@id.toString(), views:_views, navBar:_navBar};
 	}
+	/**
+	 * parse UISplitViewController
+	 */
+	private static function parseUISplitViewController(xml:XML):Object {
+	    trace("parse IBUISplitViewController", getObjectName(xml.@id.toString()), xml.@id);
+	    var _viewControllers:Array = [];
+	    var children:XMLList = xml.children();
+	    for each (var child:XML in children) {
+		switch (child.name().toString()) {
+		case "object":
+		    if (child.@key.toString() == "IBUIMasterViewController") {
+			_viewControllers.push(parseUINavigationController(child));
+		    }
+		    if (child.@key.toString() == "IBUIDetailViewController") {
+			if (child.attribute("class").toString() == "IBUIViewController")
+			    _viewControllers.push(parseUIViewController(child));
+			if (child.attribute("class").toString() == "IBUINavigationController")
+			    _viewControllers.push(parseUINavigationController(child));			    
+		    }
+		    break;
+		default:
+		    // Do nothing
+		    trace("# skipped:8", child.name().toString());
+		    break;
+		}
+	    }
+	    return {obj:"IBUISplitViewController", name:getObjectName(xml.@id.toString()), id:xml.@id.toString(), views:_viewControllers};
+	}
 
+	/**
+	 * parse UITableViewCell
+	 */
 	private static function parseUITableViewCell(xml:XML):Object {
 	    trace("parse UITableViewCell", getObjectName(xml.@id.toString()), xml.@id);
 	    var _subviews:Array = [];
 	    var children:XMLList = xml.children();
 	    for each (var child:XML in children) {
 		switch(child.name().toString()) {
+		case "array":
 		case "object":
 		    if (child.attribute("class").toString() == "NSMutableArray" && child.@key.toString() == "NSSubviews") {
 			trace("NSSubviews");
@@ -415,7 +488,7 @@ package {
 		    break;
 		default:
 		    // do nothing
-		    trace("# skipped", child.name().toString());
+		    trace("# skipped:9", child.name().toString());
 		    break;
 		}
 	    }
@@ -431,6 +504,7 @@ package {
 	    var children:XMLList = xml.children();
 	    for each (var child:XML in children) {
 		switch(child.name().toString()) {
+		case "array":
 		case "object":
 		    if (child.attribute("class").toString() == "NSMutableArray" && child.@key.toString() == "NSSubviews") {
 			trace("NSSubviews");
@@ -439,7 +513,7 @@ package {
 		    break;
 		default:
 		    // do nothing
-		    trace("# skipped", child.name().toString());
+		    trace("# skipped:10", child.name().toString());
 		    break;
 		}
 	    }
@@ -501,6 +575,7 @@ package {
 	    var children:XMLList = xml.children();
 	    for each (var child:XML in children) {
 		switch (child.name().toString()) {
+		case "array":
 		case "object":
 		    switch(child.attribute("class").toString()) {
 		    case "NSMutableArray":
@@ -548,13 +623,13 @@ package {
 			break;
 		    default:
 			// Do nothing;
-			trace("# skipped", child.attribute("class").toString());
+			trace("# skipped:11", child.attribute("class").toString());
 			break;
 		    }
 		    break;
 		default:
 		    // Do nothing
-		    trace("# skipped", child.name().toString());
+		    trace("# skipped:12", child.name().toString());
 		    break;
 		}
 	    }
@@ -640,7 +715,7 @@ package {
 				}
 				break;
 			    default:
-				trace("#skip", _child.name().toString());
+				trace("# skipped:13", _child.name().toString());
 				break;
 			    }
 			}
@@ -689,7 +764,7 @@ package {
 					}
 					break;
 				    default:
-					trace("#skip ", __child.name().toString());
+					trace("# skipped:14", __child.name().toString());
 					break;
 				    }						
 				}
@@ -731,7 +806,7 @@ package {
 				result.push({type:"color", value:_color});
 				break;
 			    default:
-				trace("#skip", child.@key.toString());
+				trace("# skipped:15", child.@key.toString());
 				break;
 			    }
 			}
@@ -740,7 +815,7 @@ package {
 		    break;
 		default:
 		    // Do nothing
-		    trace("# skipped", child.name().toString());
+		    trace("# skipped:16", child.name().toString());
 		    break;
 		}
 	    }
@@ -763,7 +838,7 @@ package {
 		    break;
 		default:
 		    // Do nothing
-		    trace("# skipped", child.name().toString());
+		    trace("# skipped:17", child.name().toString());
 		    break;
 		}
 	    }
@@ -773,11 +848,14 @@ package {
 	 * parse ObjectRecords
 	 */
 	private static function parseObjectRecords(xml:XML):void {
+	    trace("parse ObjectRecords");
 	    var children:XMLList = xml.children();
 	    for each (var child:XML in children) {
 		switch (child.name().toString()) {
+		case "array":
 		case "object":
-		    if (child.attribute("class").toString() == "NSArray" && child.@key.toString() == "orderedObjects") {
+		    //if (child.attribute("class").toString() == "NSArray" && child.@key.toString() == "orderedObjects") {
+		    if (child.@key.toString() == "orderedObjects") {
 			parseOrderedObject(child);
 			break;
 		    }
@@ -811,7 +889,7 @@ package {
 		    break;
 		default:
 		    // do nothing
-		    trace("# skipped", child.name().toString());
+		    trace("# skipped:18", child.name().toString());
 		    break;
 		}
 	    }
@@ -884,10 +962,22 @@ package {
 		    result += ":" + parseFloat(_color[1]);
 		break;
 	    default:
-		trace("#skip", key, type);
+		trace("# skipped:19", key, type);
 		break;
 	    }
 	    return result;
+	}
+
+	/**
+	 * get IBUITitle
+	 */
+	private static function getUITitle(xml:XML):String {
+	    var children:XMLList = xml.children();
+	    for each (var child:XML in children) {
+		if (child.@key.toString() == "IBUITitle")
+		    return child.toString();
+	    }
+	    return "";
 	}
 
 	/**
@@ -908,8 +998,10 @@ package {
 	private static function checkVersion():Boolean {
 	    if (_xib.name().toString() == "archive") {
 		trace(_xib.@type, _xib.@version);
-		if (_xib.@type.toString() == _TYPE && _xib.@version.toString() == _VERSION)
-		    return true;
+		for (var i:uint = 0; i < _TYPE.length; i++) {
+		    if (_xib.@type.toString() == _TYPE[i] && _xib.@version.toString() == _VERSION[i])
+			return true;
+		}
 	    }
 	    return false;
 	}

@@ -1,7 +1,7 @@
 /**
  * JavaScript Code Generator for Titanium Mobile
  * @author Copyright (c) 2010 daoki2
- * @version 1.1.0
+ * @version 1.2.0
  * 
  * Copyright (c) 2010 daoki2
  *
@@ -66,6 +66,9 @@ package {
 			break;
 		    case "IBUITableViewController":
 			generateUITableViewController(val);
+			break;
+		    case "IBUISplitViewController":
+			generateUISplitViewController(val);
 			break;
 		    case "IBUITableViewCell":
 			generateUITableViewCell(val);
@@ -242,19 +245,24 @@ package {
 	    trace("generate UINavigationController", val.name, val.id);
 	    var result:Object;
 	    var _objName:String;
+	    var _winName:String;
 	    if (isRoot) {
 		_appJs.code += "/*\n";
 	    }
 	    if (val.name != "") {
 		result = createFile(val.name + ".js");
 		_objName = val.name;
-		_appJs.code += "var " + _objName + " = Titanium.UI.createWindow({\n";
+		_winName = "win" + _id++;
+		_appJs.code += "var " + _objName + " = Titanium.UI.createWindow();\n";
+		_appJs.code += "var " + _winName + " = Titanium.UI.createWindow({\n";
 		_appJs.code += "    url: '" + _objName + ".js" + "'\n";
-		_appJs.code += "});\n\n";
-		result.code += "var " + _objName + " = Titanium.UI.currentWindow;\n\n";
+		_appJs.code += "});\n";
+		result.code += "var " + _winName + " = Titanium.UI.currentWindow;\n\n";
 	    } else {
 		_objName = "win" + _id++;
-		_appJs.code += "var " + _objName + " = Titanium.UI.createWindow();\n\n";
+		_winName = "win" + _id++;
+		_appJs.code += "var " + _objName + " = Titanium.UI.createWindow();\n";
+		_appJs.code += "var " + _winName + " = Titanium.UI.createWindow();\n\n";
 		result = getFile("app.js");
 	    }
 
@@ -291,12 +299,26 @@ package {
 		    trace("UIImagePickerController not supported yet");
 		    break;
 		}
-		result.code += _objName + ".add(" + _viewName + ");\n";
+		result.code += _winName + ".add(" + _viewName + ");\n";
+		if (view.hasOwnProperty("navItem")) {
+		    if (view.navItem != null) {
+			_appJs.code += _winName + ".title = '" + view.navItem.title + "';\n";
+		    } else {		
+			_appJs.code += _winName + ".title = null;\n";
+			_appJs.code += _winName + ".navBarHidden = true;\n";
+		    }
+		}
 	    }
+
+	    var _navName:String = "nav" + _id++;
+	    _appJs.code += "var " + _navName + " = Titanium.UI.iPhone.createNavigationGroup({\n";
+	    _appJs.code += "    window: " + _winName + "\n";
+	    _appJs.code += "});\n";
+	    _appJs.code += _objName + ".add(" + _navName + ");\n\n";
 
 	    if (isRoot) {
 		result.code += "// Uncomment the following to display the window\n";
-		result.code += "// " + _objName + ".open();\n";
+		result.code += "// " + _winName + ".open();\n";
 	    }
 	    if (isRoot) {
 		_appJs.code += "*/\n";
@@ -389,6 +411,61 @@ package {
 	}
 
 	/**
+	 * generate UISplitViewController
+	 */
+	private static function generateUISplitViewController(val:Object):String {
+	    trace("generate UISplitViewController", val.name, val.id);
+	    var _objName:String;
+	    if (val.name != "") {
+		_objName = val.name;
+	    } else {
+		_objName = "splitWin" + _id++;
+	    }
+
+	    var _subView:Array = ["masterView: ", "detailView: "];
+	    var i:uint = 0;
+	    for each (var view:* in val.views) {
+		var child:String;
+		switch(view.obj) {
+		case "IBUIViewController":
+		    child = generateUIViewController(view, false);
+		    break;
+		case "IBUINavigationController":
+		    child = generateUINavigationController(view, false);
+		    break;
+		case "IBUITableViewController":
+		    child = generateUITableViewController(view, false);
+		    break;
+		case "IBUIImagePickerController":
+		    child = generateUIImagePickerController(view, false);
+		    break;
+		default:
+		    // do nothing
+		    trace("#skip", view.obj);
+		    break;
+		}
+		if (child != null) {
+		    if (i == 0) {
+			_subView[0] += child + ",\n";
+			i++;
+		    } else if (i == 1) {
+			_subView[1] += child + "\n";
+			i++;
+		    }
+		}
+	    }
+
+	    _appJs.code += "var " + _objName + " = Titanium.UI.iPad.createSplitWindow({\n";
+	    _appJs.code += "    " + _subView[0];
+	    _appJs.code += "    " + _subView[1];
+	    _appJs.code += "});\n\n";
+
+	    _appJs.code += _objName + ".open();\n\n";
+
+	    return _objName;
+	}
+
+	/**
 	 * generate UITableViewCell
 	 */
 	private static function generateUITableViewCell(val:Object):String {
@@ -464,6 +541,9 @@ package {
 	 * generate views
 	 */
 	private static function createView(parent:String, view:Object):String {
+	    if (view == null)
+		return "";
+
 	    trace("createView", view.obj);
 	    var result:String = "";
 	    var _viewName:String;
@@ -570,10 +650,21 @@ package {
 		} else {
 		    _viewName = view.name;
 		}
-		result += "var " + _viewName + " = Titanium.UI.createScrollableView({\n";
-		result += createProperties(view.properties);
+		result += "var " + _viewName + " = Titanium.UI.createScrollView({\n";
+		//result += createProperties(view.properties);
+		result += "    contentWidth: 'auto',\n";
+		result += "    contentHeight: 'auto'\n";
 		result += "});\n";
-		break;				
+		if (view.subviews.length != 0) {
+		    result += createSubviews(_viewName, view.subviews);
+		} else {
+		    var scrollchildview:String = "view" + _id++;
+		    result += "var " + scrollchildview + " = Titanium.UI.createView({\n";
+		    result += "    backgroundColor: '#ffffff'\n";
+		    result += "});\n";
+		    result += _viewName + ".add(" + scrollchildview + ");\n\n";
+		}
+		break;
 	    case "IBUISearchBar":
 		if (view.name == "") {
 		    _viewName = "search" + _id++;
