@@ -40,11 +40,13 @@ package {
 	private static const _TYPE:Array = [
 					    "com.apple.InterfaceBuilder3.CocoaTouch.XIB",
 					    "com.apple.InterfaceBuilder3.CocoaTouch.XIB",
+					    "com.apple.InterfaceBuilder3.CocoaTouch.iPad.XIB",
 					    "com.apple.InterfaceBuilder3.CocoaTouch.iPad.XIB"
 					    ];
 	private static const _VERSION:Array = [
 					       "7.10",
 					       "8.00",
+					       "7.10",
 					       "8.00"
 					       ];
 	private static var _xib:XML;
@@ -598,7 +600,7 @@ package {
 		    case "IBUITextView":
 		    case "IBUIToolbar":
 			trace("parse", child.attribute("class"), child.@id);
-			result.push({obj:child.attribute("class").toString(), name:getObjectName(xml.@id.toString()), id:child.@id.toString(), properties:getProperties(child)});
+			result.push({obj:child.attribute("class").toString(), name:getObjectName(child.@id.toString()), id:child.@id.toString(), properties:getProperties(child)});
 			break;
 		    case "IBUIView":
 			result.push(parseUIView(child));

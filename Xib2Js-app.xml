@@ -2,11 +2,11 @@
 <application xmlns="http://ns.adobe.com/air/application/2.0">
 <!-- application xmlns="http://ns.adobe.com/air/application/1.5" -->
 <id>daoki2.XIB2JS</id>
-<version>1.20</version>
+<version>1.30</version>
 <filename>Xib2Js</filename>
 <name>Xib2Js</name>
 <description>Xib to JavaScript translater for Titanum Mobile</description>
-<copyright>2010 daoki2</copyright>
+<copyright>2010-2011 daoki2</copyright>
 <initialWindow>
   <title>Xib2Js for Titanium Mobile</title>
   <content>Xib2Js.swf</content>
