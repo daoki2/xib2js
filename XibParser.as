@@ -1,9 +1,9 @@
 /**
  * XIB parser for Titanium Mobile
- * @author Copyright (c) 2010 daoki2
- * @version 1.2.0
+ * @author Copyright (c) 2010-2012 daoki2
+ * @version 2.0.0
  * 
- * Copyright (c) 2010 daoki2
+ * Copyright (c) 2010-2012 daoki2
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

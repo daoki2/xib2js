@@ -1,9 +1,9 @@
 /**
  * JavaScript Code Generator for Titanium Mobile
- * @author Copyright (c) 2010 daoki2
- * @version 1.2.0
+ * @author Copyright (c) 2010-2012 daoki2
+ * @version 2.0.0
  * 
- * Copyright (c) 2010 daoki2
+ * Copyright (c) 2010-2012 daoki2
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -94,6 +94,11 @@ package {
 	    }
 	}
 
+	public static function trim(name:String):String {
+	    var trim:Array = name.split(' ');
+	    return trim.join("_");
+	}
+
 	/**
 	 * cleanup the code generator
 	 */
@@ -121,19 +126,28 @@ package {
 		return null;
 	    }
 
+	    _appJs.code += "(function() {\n";
 	    if (val.name != "") {
-		result = createFile(val.name + ".js");
+		result = createFile("ui/" + val.name + ".js");
 		_objName = val.name;
-		_appJs.code += "var " + _objName + " = Titanium.UI.createWindow({\n";
-		_appJs.code += "    url: '" + _objName + ".js" + "'\n";
-		_appJs.code += "});\n\n";
-		result.code += "var " + _objName + " = Titanium.UI.currentWindow;\n\n";
+		_appJs.code += "  var " + _objName + " = require('ui/" + _objName + "');\n";
+		_appJs.code += "  // new " + _objName + "().open();\n";
+		_appJs.code += "  return new " + _objName + "(); /* uncomment above and remove this in real application */\n";
+		result.code += "function " + _objName + "() {\n";
+		result.code += "  var self = Ti.UI.createWindow();\n";
+		result.code += createSubviews("self", val.subviews);
+		result.code += "  return self;\n";
+		result.code += "}\n";
+		result.code += "module.exports = " + _objName + ";\n";
 	    } else {
 		_objName = "win" + _id++;
 		_appJs.code += "var " + _objName + " = Titanium.UI.createWindow();\n\n";
 		result = getFile("app.js");
+		result.code += createSubviews(_objName, val.subviews);
+		result.code += "// " + _objName + ".open();\n";
+		result.code += "return " + (val.name != "" ? "new " + _objName + "()" : _objName) + "; /* uncomment above and remove this in real application */\n";
 	    }
-	    result.code += createSubviews(_objName, val.subviews);
+	    _appJs.code += "}());\n";
 	    return _objName;
 	}
 
@@ -143,6 +157,10 @@ package {
 	private static function generateUITabBarController(val:Object):String {
 	    trace("generate UITabBarController", val.name, val.id);
 	    var _objName:String;
+	    var result:Object;
+
+	    _appJs.code += "(function() {\n";
+
 	    if (val.name != "") {
 		_objName = val.name;
 	    } else {
@@ -177,14 +195,18 @@ package {
 		    } else {
 			_tabName = "tab" + _id++;
 		    }
-		    _appJs.code += "var " + _tabName + " = Titanium.UI.createTab({\n";
+		    _appJs.code += "var " + trim(_tabName) + " = Titanium.UI.createTab({\n";
 		    _appJs.code += "    title: '" + _tabName + "',\n";
 		    _appJs.code += "    window: " + child + "\n";
 		    _appJs.code += "});\n";
-		    _appJs.code += (_objName + ".addTab(" + _tabName + ");\n\n");
+		    _appJs.code += (_objName + ".addTab(" + trim(_tabName) + ");\n\n");
 		}
 	    }
-	    _appJs.code += _objName + ".open();\n\n";
+
+	    _appJs.code += "// " + _objName + ".open();\n";
+	    _appJs.code += "return " + _objName + "; /* uncomment above and remove this in real application */\n";
+
+	    _appJs.code += "}());\n";
 
 	    return _objName;
 	}
@@ -199,16 +221,13 @@ package {
 	    trace("generate UIViewController", val.name, val.id);
 	    var result:Object;
 	    var _objName:String;
-	    if (isRoot) {
-		_appJs.code += "/*\n";
-	    }
+
 	    if (val.name != "") {
-		result = createFile(val.name + ".js");
+		result = createFile("ui/" + val.name + ".js");
 		_objName = val.name;
-		_appJs.code += "var " + _objName + " = Titanium.UI.createWindow({\n";
-		_appJs.code += "    url: '" + _objName + ".js" + "'\n";
-		_appJs.code += "});\n";
-		result.code += "var " + _objName + " = Titanium.UI.currentWindow;\n\n";
+		_appJs.code += "var " + _objName + " = require('ui/" + _objName + "');\n";
+		result.code += "function " + _objName + "() {\n";
+		result.code += "var self = Titanium.UI.createWindow();\n";
 	    } else {
 		_objName = "win" + _id++;
 		_appJs.code += "var " + _objName + " = Titanium.UI.createWindow();\n";
@@ -216,23 +235,22 @@ package {
 	    }
 
 	    if (val.navItem != null) {
-		_appJs.code += _objName + ".title = '" + val.navItem.title + "';\n";
+		result.code += (val.name != "" ? "self" : _objName) + ".title = '" + val.navItem.title + "';\n";
 	    } else {		
-		_appJs.code += _objName + ".title = null;\n";
-		_appJs.code += _objName + ".navBarHidden = true;\n";
+		result.code += (val.name != "" ? "self" : _objName) + ".title = null;\n";
+		result.code += (val.name != "" ? "self" : _objName) + ".navBarHidden = true;\n";
 	    }
-	    _appJs.code += "\n";
+	    result.code += "\n";
 
-	    result.code += createView(_objName, val.view);
+	    result.code += createView((val.name != "" ? "self" : _objName), val.view);
 
-	    if (isRoot) {
-		result.code += "// Uncomment the following to display the window\n";
-		result.code += "// " + _objName + ".open();\n";
+	    if (val.name != "") {
+		result.code += "return self;\n";
+		result.code += "}\n";
+		result.code += "module.exports = " + _objName + ";\n";
 	    }
-	    if (isRoot) {
-		_appJs.code += "*/\n";
-	    }
-	    return _objName;
+
+	    return (val.name != "" ? "new " + _objName + "()" : _objName);
 	}
 
 	/**
@@ -246,25 +264,19 @@ package {
 	    var result:Object;
 	    var _objName:String;
 	    var _winName:String;
-	    if (isRoot) {
-		_appJs.code += "/*\n";
-	    }
+
+	    _appJs.code += "(function() {\n";
 	    if (val.name != "") {
-		result = createFile(val.name + ".js");
 		_objName = val.name;
-		_winName = "win" + _id++;
-		_appJs.code += "var " + _objName + " = Titanium.UI.createWindow();\n";
-		_appJs.code += "var " + _winName + " = Titanium.UI.createWindow({\n";
-		_appJs.code += "    url: '" + _objName + ".js" + "'\n";
-		_appJs.code += "});\n";
-		result.code += "var " + _winName + " = Titanium.UI.currentWindow;\n\n";
 	    } else {
-		_objName = "win" + _id++;
-		_winName = "win" + _id++;
-		_appJs.code += "var " + _objName + " = Titanium.UI.createWindow();\n";
-		_appJs.code += "var " + _winName + " = Titanium.UI.createWindow();\n\n";
-		result = getFile("app.js");
+		_objName = "ApplicationNavWindow";
 	    }
+	    _winName = "ApplicationWindow";
+	    _appJs.code += "var " + _objName + " = Titanium.UI.createWindow();\n";
+	    _appJs.code += "var " + _winName + " = require('ui/" + _winName + "');\n";
+	    result = createFile("ui/ApplicationWindow.js");
+	    result.code += "function " + _winName + "() {\n";
+	    result.code += "  var self = Ti.UI.createWindow();\n";
 
 	    trace("views=", val.views.length);
 	    var _viewName:String;
@@ -299,30 +311,30 @@ package {
 		    trace("UIImagePickerController not supported yet");
 		    break;
 		}
-		result.code += _winName + ".add(" + _viewName + ");\n";
+		result.code += "self.add(" + _viewName + ");\n";
 		if (view.hasOwnProperty("navItem")) {
 		    if (view.navItem != null) {
-			_appJs.code += _winName + ".title = '" + view.navItem.title + "';\n";
+			result.code += "self.title = '" + view.navItem.title + "';\n";
 		    } else {		
-			_appJs.code += _winName + ".title = null;\n";
-			_appJs.code += _winName + ".navBarHidden = true;\n";
+			result.code += "self.title = null;\n";
+			result.code += "self.navBarHidden = true;\n";
 		    }
 		}
+		result.code += "return self;\n";
+		result.code += "};\n";
+		result.code += "module.exports = " + _winName + ";\n";
 	    }
 
-	    var _navName:String = "nav" + _id++;
+	    var _navName:String = "navGroup";
 	    _appJs.code += "var " + _navName + " = Titanium.UI.iPhone.createNavigationGroup({\n";
-	    _appJs.code += "    window: " + _winName + "\n";
+	    _appJs.code += "    window: new ApplicationWindow()\n";
 	    _appJs.code += "});\n";
 	    _appJs.code += _objName + ".add(" + _navName + ");\n\n";
+	    
+	    _appJs.code += "// " + _objName + ".open();\n";
+	    _appJs.code += "return " + _objName + "; /* uncomment above and remove this in real application */\n";
+	    _appJs.code += "}());\n";
 
-	    if (isRoot) {
-		result.code += "// Uncomment the following to display the window\n";
-		result.code += "// " + _winName + ".open();\n";
-	    }
-	    if (isRoot) {
-		_appJs.code += "*/\n";
-	    }
 	    return _objName;
 	}
 
@@ -340,7 +352,7 @@ package {
 		_appJs.code += "/*\n";
 	    }
 	    if (val.name != "") {
-		result = createFile(val.name + ".js");
+		result = createFile("ui/" + val.name + ".js");
 		_objName = val.name;
 		_appJs.code += "var " + _objName + " = Titanium.UI.createWindow({\n";
 		_appJs.code += "    url: '" + _objName + ".js" + "'\n";
@@ -395,19 +407,6 @@ package {
 	    // not supported yet
 	    return "";
 
-	    /*
-	    if (val.name != "") {
-		_objName = val.name;
-	    } else {
-		_objName = "win" + _id++;
-	    }
-
-	    if (isRoot) {
-		result.code += "// Uncomment the following to display the window\n";
-		result.code += "// " + _objName + ".open();\n";
-	    }
-	    return _objName;
-	    */
 	}
 
 	/**
@@ -725,11 +724,9 @@ package {
 		result += _viewName + ".addEventListener('click', function(e)\n";
 		result += "{\n";
 		result += "    if (e.rowData.hasChild && e.rowData.test) {\n";
-		result += "        var win = Titanium.UI.createWindow({\n";
-		result += "            title: e.rowData.title,\n";
-		result += "            url: e.rowData.test\n";
-		result += "        });\n";
-		result += "        Titanium.UI.currentTab.open(win, {animated:true});\n";
+		result += "        var win = require(\"'ui/\" + e.rowData.test + \"'\").open();\n";
+		result += "        win.title = e.rowData.title;\n";
+		result += "        win.open({animated:true});\n";
 		result += "    }\n";
 		result += "});\n";
 		break;
@@ -789,11 +786,16 @@ package {
 		result += createProperties(view.properties);
 		result += "});\n";
 		break;
+	    case "NSSubviews":
+		result += createSubviews(parent, view.subviews);
+		break;
 	    default:
 		trace("# skip", view.obj);
 		break;
 	    }
-	    result += parent + ".add(" + _viewName + ");\n\n";
+	    if (_viewName != null) {
+		result += parent + ".add(" + _viewName + ");\n\n";
+	    }
 	    return result;
 	}
 

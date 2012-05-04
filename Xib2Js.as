@@ -1,9 +1,9 @@
 /**
  * XIB to JavaSript Application for Titanium Mobile
- * @author Copyright (c) 2010 daoki2
- * @version 1.0.0
+ * @author Copyright (c) 2010-2012 daoki2
+ * @version 2.0.0
  * 
- * Copyright (c) 2010 daoki2
+ * Copyright (c) 2010-2012 daoki2
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,8 +27,10 @@
 import flash.desktop.Clipboard;
 import flash.desktop.ClipboardFormats;
 import flash.desktop.NativeDragManager;
+import flash.desktop.NativeProcess;
 import flash.events.*;
 import flash.filesystem.*;
+import flash.net.ServerSocket;
 import mx.controls.*;
 import mx.events.*;
 import mx.collections.ArrayCollection;
@@ -36,14 +38,22 @@ import org.libspark.utils.FileUtil;
 import org.libspark.utils.PreferenceUtil;
 
 private var saveBtn:Button;
+private var syncBtn:Button;
 private var prefFile:String = "preference.xml";
-public var checkVersion:CheckBox = new CheckBox();
+//public var checkVersion:CheckBox = new CheckBox();
+
+private var process:NativeProcess = new NativeProcess();
+private var serverSocket:ServerSocket = new ServerSocket();
+private var clientSocket:ArrayCollection = new ArrayCollection();
 
 /**
  * Initialize the application
  */
 private function init():void {
-    checkVersion.selected = true;
+
+    setupBonjourService();
+
+    //checkVersion.selected = true;
     var result:Object = PreferenceUtil.load(this, prefFile);
     if (!result.status) {
 	trace(result.message);
@@ -68,12 +78,104 @@ private function init():void {
     saveBtn.enabled = false;
     toolBar.addChild(saveBtn);
 
+    syncBtn= new Button();
+    syncBtn.label = "Sync";
+    syncBtn.x = 70;
+    syncBtn.y = 16;
+    syncBtn.width = 56;
+    syncBtn.height = 28;
+    syncBtn.addEventListener(MouseEvent.CLICK, syncBtn_clickHandler);
+    syncBtn.enabled = false;
+    toolBar.addChild(syncBtn);
+
+    /*
     checkVersion.label = "Check .xib version";
     checkVersion.x = width - 144;
     checkVersion.y = 22;
     addChild(checkVersion);
+    */
     app_resizeHandler(null);
     visible = true;
+}
+
+/**
+ * Startup bounjour service
+ */
+private function setupBonjourService():void {
+    var args:Vector.<String> = new Vector.<String>();
+    args.push("-R");
+    args.push("TiMock Service");
+    args.push("_timock._tcp");
+    args.push("");
+    args.push("40401");
+
+    var info:NativeProcessStartupInfo = new NativeProcessStartupInfo();
+    info.executable = new File("/usr/bin/dns-sd");
+    info.arguments = args;
+
+    process.start(info);
+    process.addEventListener(ProgressEvent.STANDARD_OUTPUT_DATA, onStartupService);
+}
+
+private function onStartupService(event:ProgressEvent):void{
+    var stdo:IDataInput = process.standardOutput;
+
+    var result:Array = [{code: stdo.readUTFBytes(stdo.bytesAvailable).toString()}];
+
+    // bind socket
+    if (!serverSocket.bound) {
+	try {
+	    serverSocket.bind(40401);
+	    serverSocket.addEventListener(ServerSocketConnectEvent.CONNECT, onConnect);
+	    serverSocket.listen();
+	} catch (e:IOError) {
+	    createTabs([{code: "#Error: Please close all client and restart xib2js"}]);
+	}
+    }
+}
+
+private function onConnect(e:ServerSocketConnectEvent):void {
+    var client:Socket = e.socket;
+    client.addEventListener(ProgressEvent.SOCKET_DATA, onClientSocketData);
+    clientSocket.addItem(client);
+}
+
+private function onClientSocketData(e:ProgressEvent):void {
+    var buffer:ByteArray = new ByteArray();
+    e.target.readBytes(buffer, 0, e.target.bytesAvailable - 2);
+    var result:Array = [{code: buffer.toString()}];
+
+    switch(buffer.toString()) {
+    case "Connected":
+	//createTabs(result);
+	syncBtn.enabled = true;
+	break;
+    case "file":
+	e.target.writeBytes(copyFile.data);
+	break;
+    default:
+	Alert.show("Unknown command: '" + buffer.toString() + "'", "ERROR");
+	break;
+    }
+
+    e.target.readBytes(buffer, 0, e.target.bytesAvailable); // read remain    
+}
+
+/**
+ * Copy file to mobile device
+ */
+private var copyFile:File;
+private function copy(file:File):void {
+    copyFile = file;
+    copyFile.addEventListener(Event.COMPLETE, onFileLoaded);
+    copyFile.load();
+}
+
+private function onFileLoaded(e:Event):void {
+    copyFile.removeEventListener(Event.COMPLETE, onFileLoaded);
+    for each (var _socket:Socket in clientSocket) {
+	_socket.writeUTFBytes("file:" + e.target.name); // send filename to mobile device 
+    }
 }
 
 /**
@@ -83,7 +185,7 @@ private function parse(file:File):void {
     XibParser.cleanup();
     JsCodegen.cleanup();
     trace("------------------ start parsing ----------------------");
-    XibParser.exec(file, checkVersion.selected);
+    XibParser.exec(file, /*checkVersion.selected*/ false);
     var _parsedData:Array = XibParser.getParsedData();
     trace("--------------- start code generater ------------------");
     if (_parsedData.length > 0) {
@@ -97,12 +199,28 @@ private function parse(file:File):void {
  * Application close handler
  */
 private function app_closingHandler(event:Event):void {
+    if (process.running) {
+	process.exit();
+    }
+
+    if (serverSocket.bound) {
+	serverSocket.close();
+    }
+
+    if (clientSocket.length != 0) {
+	for each(var _socket:Socket in clientSocket) {
+	    if (_socket.connected) {
+	        _socket.close();
+	    }
+	}
+    }
+
     var prefList:ArrayCollection = new ArrayCollection();
     prefList.addItem("nativeWindow.x");
     prefList.addItem("nativeWindow.y");
     prefList.addItem("width");
     prefList.addItem("height");
-    prefList.addItem("checkVersion.selected");
+    //prefList.addItem("checkVersion.selected");
     PreferenceUtil.save(this, prefList, prefFile);
 }
 
@@ -111,7 +229,7 @@ private function app_closingHandler(event:Event):void {
  */
 private function app_resizeHandler(event:ResizeEvent):void {
     toolBar.width = width;
-    checkVersion.x = width - 144;
+    //checkVersion.x = width - 144;
     tabs.width = width - 20;
     tabs.height = height - 84;
     
@@ -147,8 +265,12 @@ private function nativeDragEnterHandler(event:NativeDragEvent):void {
 private function nativeDragDropHandler(event:NativeDragEvent):void {
     var clipboard:Clipboard = event.clipboard;
     var files:Object = clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT);
-    saveBtn.enabled = false;
-    callLater(parse, [files[0]]);
+    if (files[0].extension == "xib") {
+	saveBtn.enabled = false;
+	callLater(parse, [files[0]]);
+    } else {
+	callLater(copy, [files[0]]);
+    }
 }
 
 /**
@@ -162,6 +284,34 @@ private function saveBtn_clickHandler(event:MouseEvent):void {
     } catch (err:Error) {
 	Alert.show(err.message, "ERROR");
     }
+}
+
+private function syncBtn_clickHandler(event:MouseEvent):void {
+    var children:Array = tabs.getChildren();
+    var code:String = "";
+    for each (var child:Canvas in children) {
+	var textarea:TextArea = TextArea(child.getChildAt(0));
+	code += build_txt(textarea.text) + "\n";
+    }
+    code += "}());\n";
+    //createTabs([{code: code}]);
+    for each (var _socket:Socket in clientSocket) {
+	_socket.writeUTFBytes("code:" + code);
+    }
+}
+
+private function build_txt(code:String):String {
+    var result:String = "";
+    
+    var line:Array = code.split("\r");
+    for (var i:int = 0; i < line.length; i++) {
+	if (line[i].search("require") == -1 && line[i].search("module.exports") == -1 ) {
+	    if (line[i] != "}());") {
+		result += String(line[i]) + "\n";
+	    }
+	}   
+    }
+    return result;
 }
 
 /**
