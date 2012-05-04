@@ -11,7 +11,7 @@ What's new in ver2.0
 * Now the code generator convert the JavaScript code as CommonJS stye
 * As mentioned above, it communicate with TiMock and host the code
 
-Know issue
+Known issue
 ----------
 
 * You can just drag and drop one file at once
